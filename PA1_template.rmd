@@ -1,0 +1,123 @@
+---
+title: "PA1_template"
+author: "Ngoc"
+date: "Sunday, December 14, 2014"
+output: html_document
+---
+1. Loading the data
+```{r}
+activity <- read.csv("activity.csv", colClasses = c("numeric", "character", "numeric"))
+```
+
+2. Preprocess the data
+```{r}
+library(lattice)
+activity$date <- as.Date(activity$date, "%Y-%m-%d")
+
+```
+
+What is mean total number of steps taken per day?
+
+1. Make a histogram of the total number of steps taken each day
+
+```{r, eval=T}
+StepsTotal <- aggregate(steps ~ date, data = activity, sum, na.rm = TRUE)
+hist(StepsTotal$steps, main = "Total steps by day", xlab = "Total number of steps", col = "red")
+
+```
+
+2. Calculate and report the mean and median total number of steps taken per day
+```{r, eval=T}
+mean(StepsTotal$steps)
+median(StepsTotal$steps)
+```
+
+What is the average daily activity pattern?
+
+1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+* Compute average of number of steps taken for each 5-minute interval
+```{r}
+res <- aggregate(steps ~ interval, data = activity, FUN = mean)
+```
+
+* Plot the time series
+```{r}
+plot(y = res$steps, x = res$interval, type = "l", xlab = "interval", ylab = "Avg number of steps taken")
+```
+
+2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r}
+with(res, interval[which.max(steps)])
+```
+
+Imputing missing values
+```{r}
+require(plyr)
+imputed.steps <- numeric(0)
+impute <- function(row) {
+  
+  if (is.na(activity$steps[row])) {
+    id <- activity$interval[row]
+    with(res, steps[interval == id])
+  } else {
+    activity$steps[row]
+  }
+}
+
+imputed.steps <- laply(1: nrow(activity), impute)
+```
+
+* Create a new dataset with imputed values for steps
+```{r}
+new.activity <- data.frame("steps" = imputed.steps, "date" = activity$date, "interval" = activity$interval)
+```
+
+* Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day
+```{r}
+total.steps.2 <- aggregate(steps ~ date, data = new.activity, FUN = sum)
+hist(total.steps.2$steps, xlab = "Total number of steps", col = "green", main = "Histogram of total steps by day")
+mean(total.steps.2$steps)
+median(total.steps.2$steps)
+```
+
+* Do mean and median  differ from the estimates from the first part of the assignment?
+Mean: no. Median: yes, but very small difference.
+Comparing the two histogram, we see that imputing NAs creates a higher peak on the 2nd histogram. IN other words, there are more days with avg number of steps in interval [10K, 15K].
+
+
+
+Are there differences in activity patterns between weekdays and weekends?
+
+* Create a new factor variable in the dataset with two levels - "weekday" and "weekend"
+```{r}
+activity <- transform(activity, "weekdays" = weekdays(activity$date, abbreviate = T))
+activity <- transform(activity, "is.weekend" = ifelse(activity$weekdays %in% c("Sat", "Sun"), "weekend", "weekday"))
+```
+
+* Panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all __weekdays__
+
+```{r}
+weekday.act <- subset(activity, is.weekend == "weekday")
+weekday.ds <- aggregate(steps ~ interval, data = weekday.act, FUN = mean)
+with(weekday.ds, plot(y = steps, x = interval, type = "l", 
+                      xlab = "5-minute intervals", ylab = "Avg number of steps taken", 
+                      main = "Time series for weekdays",
+                      col = "orange"))
+
+```
+
+* Panel plot for __weekends__
+```{r}
+weekend.act <- subset(activity, is.weekend == "weekend")
+weekend.ds <- aggregate(steps ~ interval, data = weekend.act, FUN = mean)
+with(weekend.ds, plot(y = steps, x = interval, type = "l", 
+                      xlab = "5-minute intervals", ylab = "Avg number of steps taken", 
+                      main = "Time series for weekends",
+                      col = "pink"))
+```
+
+From the two time series, we can see that on weekends, people walk more (there are much more peaks) and the peaks are spreaded all over duration from 8am to 8pm (since we have more free time to walk, exercise, perhaps).
+
+
